@@ -16,7 +16,7 @@ const ACTIVITY_LABELS: Record<string, string> = {
 };
 
 export default function LogCard({ log, onDelete }: LogCardProps) {
-  const time = new Date(log.time).toLocaleTimeString([], {
+  const time = new Date(log.startTime).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });

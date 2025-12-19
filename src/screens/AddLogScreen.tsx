@@ -45,7 +45,9 @@ export default function AddLogScreen() {
     }
 
     const logData = {
-      time: time.toISOString(),
+      date: time.toISOString().split('T')[0],
+      startTime: time.toISOString(),
+      endTime: new Date(time.getTime() + 60 * 60 * 1000).toISOString(), // +1 hour default
       activityType: activity,
       description: description.trim(),
       reference: reference.trim() || undefined,

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:4000/api';
+const API_URL = 'https://evident-api.onrender.com/api';
 
 interface RequestOptions {
   method?: string;
@@ -34,42 +34,73 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 }
 
 export const api = {
-  auth: {
-    login: (email: string, password: string) =>
-      request<{ accessToken: string; user: User }>('/auth/login', {
-        method: 'POST',
-        body: { email, password },
-      }),
-    register: (email: string, password: string) =>
-      request<{ accessToken: string; user: User }>('/auth/register', {
-        method: 'POST',
-        body: { email, password },
-      }),
+  setToken: (token: string) => {
+    // Token is passed per-request, this is for compatibility
   },
 
-  logs: {
-    create: (token: string, log: CreateLog) =>
-      request<Log>('/logs', { method: 'POST', body: log, token }),
-    today: (token: string) => request<Log[]>('/logs/today', { token }),
-    thisWeek: (token: string) => request<Log[]>('/logs/this-week', { token }),
-    lastWeek: (token: string) => request<Log[]>('/logs/last-week', { token }),
-    sync: (token: string, logs: CreateLog[]) =>
-      request<{ synced: number }>('/logs/sync', { method: 'POST', body: { logs }, token }),
+  login: (email: string, password: string) =>
+    request<{ accessToken: string; user: User }>('/auth/login', {
+      method: 'POST',
+      body: { email, password },
+    }),
+
+  register: (email: string, password: string) =>
+    request<{ accessToken: string; user: User }>('/auth/register', {
+      method: 'POST',
+      body: { email, password },
+    }),
+
+  getLogs: (timeView: string, token?: string) => {
+    const endpoint = timeView === 'today' ? '/logs/today' 
+      : timeView === 'this-week' ? '/logs/this-week' 
+      : '/logs/last-week';
+    return request<Log[]>(endpoint, { token });
   },
 
-  exports: {
-    generate: (token: string, startDate: string, endDate: string) =>
-      request<ExportResult>('/exports/generate', {
-        method: 'POST',
-        body: { startDate, endDate },
-        token,
-      }),
+  createLog: (log: CreateLog, token?: string) =>
+    request<Log>('/logs', { method: 'POST', body: log, token }),
+
+  deleteLog: (id: string, token?: string) =>
+    request<{ deleted: boolean }>(`/logs/${id}`, { method: 'DELETE', token }),
+
+  syncLogs: (logs: CreateLog[], token?: string) =>
+    request<{ synced: number }>('/logs/sync', { method: 'POST', body: { logs }, token }),
+
+  generateSummary: (timeRange: string, token?: string) => {
+    const now = new Date();
+    let startDate: Date, endDate: Date;
+    
+    if (timeRange === 'today') {
+      startDate = new Date(now.setHours(0, 0, 0, 0));
+      endDate = new Date();
+    } else if (timeRange === 'this-week') {
+      const day = now.getDay();
+      startDate = new Date(now.setDate(now.getDate() - day));
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date();
+    } else {
+      const day = now.getDay();
+      endDate = new Date(now.setDate(now.getDate() - day - 1));
+      endDate.setHours(23, 59, 59, 999);
+      startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0);
+    }
+    
+    return request<ExportResult>('/exports/generate', {
+      method: 'POST',
+      body: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+      token,
+    });
   },
 
-  users: {
-    canExport: (token: string) =>
-      request<{ allowed: boolean; reason?: string }>('/users/can-export', { token }),
+  exportPDF: (timeRange: string, token?: string) => {
+    // PDF export would be handled similarly
+    return api.generateSummary(timeRange, token);
   },
+
+  canExport: (token?: string) =>
+    request<{ allowed: boolean; reason?: string }>('/users/can-export', { token }),
 };
 
 export interface User {
